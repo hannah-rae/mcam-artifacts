@@ -105,7 +105,6 @@ for udr in product_dict.keys():
 # Put crap from csv into dictionary for parsing
 with open('nonRP-set.csv') as file:
 	for row in file:
-		print row
 		neg_prod = row.split(',')
 		neg_udr_image_id = neg_prod[2].rstrip('\n')
 		if neg_udr_image_id in neg_product_dict.keys():
@@ -153,13 +152,17 @@ num_test_data = int(math.floor(len(train_img_list) * .3))
 test_list = train_img_list[:num_test_data] # first num_test_data points
 train_list = train_img_list[num_test_data:] # num_test_data+1 to N points
 
-print test_list
-print train_list
-
 ##########################################################################################
 # Sadly, not all the images are the same size, so we have to determine what the max 
 # height and width are so we can resize all images to this later.
-
+total_list = test_list + train_list
+max_h = 0
+max_w = 0
+for url, label, height, width in total_list:
+	if height > max_h:
+		max_h = height
+	if width > max_w:
+		max_w = width
 
 ##########################################################################################
 # Now that we have the list of images we need in each set, we need to read in the images.
