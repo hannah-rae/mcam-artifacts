@@ -1,6 +1,9 @@
 import csv
 import random
 import math
+from scipy import misc
+import numpy as np
+import tensorflow as tf
 
 # Query for retrieving positive label data
 # select sol, name, udr_image_id, width, height from udr where udr_image_id in
@@ -11,6 +14,8 @@ import math
 #        and udr.udr_image_id is NOT NULL
 #        order by udr_image_id)
 # and type_of_product != 'Thumbnail'
+# and filter_used = 0
+# and sol != 1000
 # and name not like '%Partial%'
 # order by udr_image_id
 
@@ -24,8 +29,36 @@ import math
 # 	and type_of_product != 'Video'
 # 	and type_of_product != 'Zstack'
 # 	and type_of_product != 'Rangemap'
+# 	and sol != 1000
 # 	and name not like '%Partial%' 
+# 	and filter_used = 0
 # 	and (instrument = 'ML' or instrument = 'MR')
+
+
+def get_array_and_resize(filename):
+	img = misc.imread(filename)
+	return misc.imresize(img, [max_h, max_w])
+
+def get_next_batch(batch_size, batch_num):
+	img_list = []
+	label_list = []
+	offset = batch_size * batch_num
+	for i in range(batch_size):
+		img = get_array_and_resize(train_list[offset + i][0]).flatten()
+		label = train_list[offset + i][1]
+		img_list.append(img)
+		label_list.append(label)
+	return img_list, label_list
+
+def get_test_data():
+	test_img_list = []
+	test_label_list = []
+	for i in range(len(test_list)):
+		img = get_array_and_resize(test_list[i][0]).flatten()
+		label = test_list[i][1]
+		test_img_list.append(img)
+		test_label_list.append(label)
+	return test_img_list, test_label_list
 
 def build_url(sol, name):
 	# TODO: Fix bug where neither case is true...
@@ -152,6 +185,11 @@ num_test_data = int(math.floor(len(train_img_list) * .3))
 test_list = train_img_list[:num_test_data] # first num_test_data points
 train_list = train_img_list[num_test_data:] # num_test_data+1 to N points
 
+print test_list
+print train_list
+print len(test_list)
+print len(train_list)
+
 ##########################################################################################
 # Sadly, not all the images are the same size, so we have to determine what the max 
 # height and width are so we can resize all images to this later.
@@ -164,9 +202,55 @@ for url, label, height, width in total_list:
 	if width > max_w:
 		max_w = width
 
+
 ##########################################################################################
-# Now that we have the list of images we need in each set, we need to read in the images.
-# We will add a key to each UDR dictionary entry, 'data', where data is a vector of pixels.
+# Now let's make an attempt to do a FF network.
+
+num_classes = 2
+input_vector_size = max_h * max_w * 3
+
+# set up vectors for input x and model parameters W, b
+x = tf.placeholder(tf.float32, [None, input_vector_size])
+W = tf.Variable(tf.zeros([input_vector_size, num_classes]))
+b = tf.Variable(tf.zeros([num_classes]))
+
+y_predict = tf.nn.softmax(tf.matmul(x, W) + b) # predicted probability distribution / label
+y_true = tf.placeholder(tf.float32, [None, num_classes]) # true probability distribution / label
+
+cross_entropy = -tf.reduce_sum(y_true * tf.log(y_predict)) # set up the cross-entropy cost fn
+
+learning_rate = 0.01
+train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(cross_entropy)
+
+init = tf.initialize_all_variables() # operaation to initialize Variables
+
+########## TRAINING #############
+sess = tf.Session() # Create a session to run the model in
+sess.run(init) # Run the operation to init Variables in the session
+
+# Stochastic gradient descent to train the model with the cross-entropy loss function
+batch_size = 100
+num_batches = int(math.floor(len(train_list) / batch_size))
+
+for i in range(num_batches):
+	print "training batch " + i
+	batch_xs, batch_ys = get_next_batch(batch_size, i)
+	sess.run(train_step, feed_dict={x:batch_xs, y_true: batch_ys})
+
+########## TESTING #############
+correct_prediction = tf.equal(tf.argmax(y_predict,1), tf.argmax(y_true,1))
+accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+test_images, test_labels = get_test_data()
+print(sess.run(accuracy, feed_dict={x: test_images, y_true: test_labels}))
+
+
+
+
+
+
+
+
+
 
 
 
