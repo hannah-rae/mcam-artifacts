@@ -1,11 +1,16 @@
 
 import random
+import os
+import threading
+import Queue
+
 import numpy as np
-import PIL
+from PIL import Image
 
 
 #### Query to generate artifact-image-list.csv
 #### Retrieves images and their recovered products
+#### Note: Would it make more sense to select on compression column?
 # select sol, name, udr_image_id, filter_used from udr where udr_image_id in 
 # (select udr_image_id
 #    from udr
@@ -24,97 +29,172 @@ import PIL
 # select distinct udr_image_id from udr where type_of_product = 'Video'
 
 
+WINDOW_SIZE = 28
+
+STRIDE = WINDOW_SIZE * 4
+
+IMGS_PER_BATCH = 2
+
+# QUALITY_BOUNDS = (5, 95)
+QUALITY_SAMPLES = [1,95]
+
+TRAIN_TEST_SPLIT = 0.9
+
+NUM_WORKERS = 4
+
+
 class DataSet(object):
 
-    DEFAULT_WINDOW_SIZE = 18
+    def __init__(self, images, N=1):
+        self.lock = threading.Lock()
+        self.images = images * N
+        self.window_size = WINDOW_SIZE
 
-    def __init__(self, images, window_size=DEFAULT_WINDOW_SIZE):
-        self.images = images
-        self.window_size = window_size
+    @property
+    def batch_size(self):
+        if not hasattr(self, '_batch_size'):
+            self.lock.acquire()
+            frags_per_img = len(self.frag_image(self.images[0].uncompressed_data()))
+            self._batch_size = frags_per_img * IMGS_PER_BATCH
+            self.lock.release()
+        return self._batch_size
 
     def __iter__(self):
         return self
 
     def next(self):
-        image = self.images.pop()
-        uncompressed_slices = self.slice_image(image.uncompressed_data())
-        compressed_slices = self.slice_image(image.compressed_data())
-        next_batch = [
-            (c_sl, self.compute_difference(u_sl, c_sl))
-            for u_sl, c_sl in zip(uncompressed_slices, compressed_slices)
-        ]
-        return next_batch
 
-    def slice_image(self, image):
+        next_batch = []
+
+        # for _ in range(IMGS_PER_BATCH):
+        for q in QUALITY_SAMPLES:
+
+            self.lock.acquire()
+            if not self.images:
+                raise StopIteration
+            else:
+                image = self.images.pop()
+            self.lock.release()
+
+            # quality = random.randint(*QUALITY_BOUNDS)
+            quality = q
+
+            # print 'DataSet:  image = %s  sol = %d  udr = %d  quality = %d' % (
+            #     image.name, image.sol, image.udr, quality
+            # )
+
+            uncompressed_frags = self.frag_image(image.uncompressed_data())
+            compressed_frags   = self.frag_image(image.compressed_data(quality=quality))
+
+            next_batch += [
+                (c_sl, self.compute_corruption(u_sl, c_sl))
+                for u_sl, c_sl in zip(uncompressed_frags, compressed_frags)
+            ]
+
+        # #### TESTING
+        # unc_image_frag0 = Image.fromarray(uncompressed_frags[0], 'RGB')
+        # unc_image_frag0.save('/home/hannah/data/mcam-artifacts-v1-test/%s_frag0.png' % image.uncompressed_filename().split('/')[-1])
+        # unc_image_frag1 = Image.fromarray(uncompressed_frags[-1], 'RGB')
+        # unc_image_frag1.save('/home/hannah/data/mcam-artifacts-v1-test/%s_frag1.png' % image.uncompressed_filename().split('/')[-1])
+
+        # com_image_frag0 = Image.fromarray(compressed_frags[0], 'RGB')
+        # com_image_frag0.save('/home/hannah/data/mcam-artifacts-v1-test/%s_frag0.png' % image.compressed_filename().split('/')[-1])
+        # com_image_frag1 = Image.fromarray(compressed_frags[-1], 'RGB')
+        # com_image_frag1.save('/home/hannah/data/mcam-artifacts-v1-test/%s_frag1.png' % image.compressed_filename().split('/')[-1])
+
+        # print image.uncompressed_filename()
+        # print '/home/hannah/data/mcam-artifacts-v1-test/%s_frag0.png' % image.uncompressed_filename().split('/')[-1]
+        # print '/home/hannah/data/mcam-artifacts-v1-test/%s_frag1.png' % image.uncompressed_filename().split('/')[-1]
+        # print image.compressed_filename()
+        # print '/home/hannah/data/mcam-artifacts-v1-test/%s_frag0.png' % image.compressed_filename().split('/')[-1]
+        # print '/home/hannah/data/mcam-artifacts-v1-test/%s_frag1.png' % image.compressed_filename().split('/')[-1]
+        # ####
+
+        # print 'DataSet: returned %d image fragments' % len(next_batch)
+        # print 'DataSet: %d images remaining' % len(self.images)
+
+        def unzip(xys):
+            return tuple(map(list, zip(*xys)))
+
+        return unzip(next_batch)
+
+    def frag_image(self, image):
         (rows, cols, chans) = image.shape
         s = self.window_size
-        slices = [image[r:r+s, c:c+s] for r in range(rows-s+1) for c in range(cols-s+1)]
-        return slices
+        frags = [
+            image[r:r+s, c:c+s]
+            for r in range(0, rows-s+1, STRIDE) for c in range(0, cols-s+1, STRIDE)
+            if (10 < r < rows-10-s) and (10 < c < cols-10-s)  # exclude edges
+        ]
+        return frags
 
-    def compute_difference(self, image1, image2):
-        return np.sum(np.square(image1.flatten() - image2.flatten()))
+    def compute_corruption(self, image1, image2):
+        return float(np.sqrt(np.sum(np.square(image1.flatten() - image2.flatten()))))
 
 
 class McamImage(object):
 
-    DEFAULT_QUALITY = 50
+    DEFAULT_QUALITY = 40
 
     def __init__(self, name, sol, udr):
         self.name = name
         self.sol = sol
         self.udr = udr
-        self.quality = quality
         self._compressed_imgs = {}
 
     @property
     def instrument(self):
-        if 'McamL' in name:
+        if 'McamL' in self.name:
             return 'ML'
-        elif 'McamR' in name:
+        elif 'McamR' in self.name:
             return 'MR'
 
     def uncompressed_filename(self):
-        return '/molokini_raid/MSL/data/surface/processed/images/web/full/SURFACE/%s/%s/%s.png' % (
+        return '/molokini_raid/MSL/data/surface/processed/images/web/full/SURFACE/%s/sol%s/%s.png' % (
             self.instrument,
             str(self.sol).zfill(4),
             self.name.strip('\"')
         )
     
     def compressed_filename(self, quality=DEFAULT_QUALITY):
-        return '/home/hannah/data/mcam-artifacts-v1/%s_compressed%d.jpg' % (
+        return '/home/hannah/data/mcam-artifacts-tmp/%s_compressed%d.jpg' % (
             self.name.strip('\"'),
             quality
         )
 
     def uncompressed_img(self):
         if not hasattr(self, '_uncompressed_img'):
-            self._uncompressed_img = PIL.Image.open(self.uncompressed_filename())
+            self._uncompressed_img = Image.open(self.uncompressed_filename())
         return self._uncompressed_img
 
     def compressed_img(self, quality=DEFAULT_QUALITY):
         if quality not in self._compressed_imgs:
-            self.uncompressed_img.save(self.compressed_filename(quality=quality), 'JPEG', quality=quality)
-            self._compressed_imgs[quality] = PIL.Image.open(self.compressed_filename(quality=quality))
+            self.uncompressed_img().save(self.compressed_filename(quality=quality), 'JPEG', quality=quality)
+            self._compressed_imgs[quality] = Image.open(self.compressed_filename(quality=quality))
+            os.remove(self.compressed_filename(quality=quality))
         return self._compressed_imgs[quality]
 
     def uncompressed_data(self):
-        return np.array(self.uncompressed_img)
+        return np.array(self.uncompressed_img()) / 256.
 
     def compressed_data(self, quality=DEFAULT_QUALITY):
-        return np.array(self.compressed_data(quality=quality))
+        return np.array(self.compressed_img(quality=quality)) / 256.
 
 
 def get_datasets():
 
+    csv_rows = [
+        (lambda w: (int(w[0]), w[1], int(w[2]), (w[3].strip())))(line.split(','))
+        for line in file('artifact-image-list.csv')
+    ]
+
     csv_image_rows = [
-        (sol, name, udr, filter_)
-        for (sol, name, udr, filter_) in file('artifact-image-list.csv')
+        (sol, name, udr, filter_) for (sol, name, udr, filter_) in csv_rows
         if name.startswith('McamLImage') or name.startswith('McamRImage')
     ]
 
     csv_recovered_rows = [
-        (sol, name, udr, filter_)
-        for (sol, name, udr, filter_) in file('artifact-image-list.csv')
+        (sol, name, udr, filter_) for (sol, name, udr, filter_) in csv_rows
         if name.startswith('McamLRecoveredProduct') or name.startswith('McamRRecoveredProduct')
     ]
 
@@ -142,17 +222,38 @@ def get_datasets():
         if (filter_ == '0') and (udr not in udr_blacklist)
     ])
 
-    random.shuffle(recovered_mcam_images)
-    random.shuffle(recovered_mcam_images)
-    random.shuffle(recovered_mcam_images)
-    random.shuffle(recovered_mcam_images)
+    random.seed(8008135)
     random.shuffle(recovered_mcam_images)
 
-    def split(xs, r):
-        i = int(len(xs)*r)
-        return xs[:i], xs[i:]
+    def make_datasets(imgs, ratio):
+        i = int(ratio*len(imgs))
+        return DataSet(imgs[:i]), DataSet(imgs[i:])
 
-    training_images, test_images = split(recovered_mcam_images, 0.9)
+    training_dataset, test_dataset = make_datasets(recovered_mcam_images, TRAIN_TEST_SPLIT)
 
-    return map(DataSet, training_images), map(DataSet, test_images)
+    print 'Images found: %d' % len(recovered_mcam_images)
+    print 'Batch size: %d' % training_dataset.batch_size
+
+    return training_dataset, test_dataset
+
+
+def make_dataqueue(dataset):
+    dataqueue = Queue.Queue(maxsize=4*NUM_WORKERS)
+    def worker():
+        for batch in dataset:
+            dataqueue.put(batch)
+        dataqueue.put(None)  # sentinel
+    for _ in xrange(NUM_WORKERS):
+        worker_thread = threading.Thread(target=worker)
+        worker_thread.start()
+    return dataqueue
+
+
+if __name__ == '__main__':
+    training_dataset, test_dataset = get_datasets()
+    for i, batch in enumerate(training_dataset):
+        print 'batch', i
+
+
+
 
