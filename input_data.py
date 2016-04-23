@@ -10,19 +10,19 @@ from PIL import Image
 
 #### Query to generate artifact-image-list.csv
 #### Retrieves images and their recovered products
-#### Note: Would it make more sense to select on compression column?
-# select sol, name, udr_image_id, filter_used from udr where udr_image_id in 
-# (select udr_image_id
-#    from udr
-#        where type_of_product = 'RecoveredProduct'
-#        and (instrument = 'ML' or instrument = 'MR')
-#        and udr.name not like '%Partial%'
-#        and udr.udr_image_id is NOT NULL
-# order by udr_image_id)
-# and type_of_product != 'Thumbnail'
-# and sol != 1000
-# and width = 168 and height = 150
-# and name not like '%Partial%' 
+# select sol, name, udr_image_id, filter_used, comp_quality from udr
+#   where udr_image_id in
+#       (select udr_image_id from udr
+#          where type_of_product = 'RecoveredProduct'
+#          and (instrument = 'ML' or instrument = 'MR')
+#          and udr.name not like '%Partial%'
+#          and udr.udr_image_id is NOT NULL
+#          and comp_quality = 0
+#        order by udr_image_id)
+#   and type_of_product != 'Thumbnail'
+#   and sol != 1000
+#   and width = 168 and height = 150
+#   and name not like '%Partial%'
 # order by udr_image_id
 
 #### Query to generate video-udrs.csv
@@ -33,19 +33,20 @@ WINDOW_SIZE = 28
 
 STRIDE = WINDOW_SIZE * 4
 
-IMGS_PER_BATCH = 2
-
 # QUALITY_BOUNDS = (5, 95)
-QUALITY_SAMPLES = [1,95]
+QUALITY_SAMPLES = [20,95]
+COMPRESSED = 1
+UNCOMPRESSED = 0
+
+IMGS_PER_BATCH = len(QUALITY_SAMPLES)
 
 TRAIN_TEST_SPLIT = 0.9
 
-NUM_WORKERS = 4
-
+NUM_WORKERS = 2
 
 class DataSet(object):
 
-    def __init__(self, images, N=1):
+    def __init__(self, images, N=1, schedule=None):
         self.lock = threading.Lock()
         self.images = images * N
         self.window_size = WINDOW_SIZE
@@ -63,59 +64,19 @@ class DataSet(object):
         return self
 
     def next(self):
-
         next_batch = []
-
-        # for _ in range(IMGS_PER_BATCH):
-        for q in QUALITY_SAMPLES:
-
+        for i, q in enumerate(QUALITY_SAMPLES):
             self.lock.acquire()
             if not self.images:
                 raise StopIteration
             else:
                 image = self.images.pop()
             self.lock.release()
-
-            # quality = random.randint(*QUALITY_BOUNDS)
-            quality = q
-
-            # print 'DataSet:  image = %s  sol = %d  udr = %d  quality = %d' % (
-            #     image.name, image.sol, image.udr, quality
-            # )
-
-            uncompressed_frags = self.frag_image(image.uncompressed_data())
-            compressed_frags   = self.frag_image(image.compressed_data(quality=quality))
-
-            next_batch += [
-                (c_sl, self.compute_corruption(u_sl, c_sl))
-                for u_sl, c_sl in zip(uncompressed_frags, compressed_frags)
-            ]
-
-        # #### TESTING
-        # unc_image_frag0 = Image.fromarray(uncompressed_frags[0], 'RGB')
-        # unc_image_frag0.save('/home/hannah/data/mcam-artifacts-v1-test/%s_frag0.png' % image.uncompressed_filename().split('/')[-1])
-        # unc_image_frag1 = Image.fromarray(uncompressed_frags[-1], 'RGB')
-        # unc_image_frag1.save('/home/hannah/data/mcam-artifacts-v1-test/%s_frag1.png' % image.uncompressed_filename().split('/')[-1])
-
-        # com_image_frag0 = Image.fromarray(compressed_frags[0], 'RGB')
-        # com_image_frag0.save('/home/hannah/data/mcam-artifacts-v1-test/%s_frag0.png' % image.compressed_filename().split('/')[-1])
-        # com_image_frag1 = Image.fromarray(compressed_frags[-1], 'RGB')
-        # com_image_frag1.save('/home/hannah/data/mcam-artifacts-v1-test/%s_frag1.png' % image.compressed_filename().split('/')[-1])
-
-        # print image.uncompressed_filename()
-        # print '/home/hannah/data/mcam-artifacts-v1-test/%s_frag0.png' % image.uncompressed_filename().split('/')[-1]
-        # print '/home/hannah/data/mcam-artifacts-v1-test/%s_frag1.png' % image.uncompressed_filename().split('/')[-1]
-        # print image.compressed_filename()
-        # print '/home/hannah/data/mcam-artifacts-v1-test/%s_frag0.png' % image.compressed_filename().split('/')[-1]
-        # print '/home/hannah/data/mcam-artifacts-v1-test/%s_frag1.png' % image.compressed_filename().split('/')[-1]
-        # ####
-
-        # print 'DataSet: returned %d image fragments' % len(next_batch)
-        # print 'DataSet: %d images remaining' % len(self.images)
-
+            compressed_frags = self.frag_image(image.compressed_data(quality=q))
+            next_batch += [(c_sl, i) for c_sl in compressed_frags]
+        random.shuffle(next_batch)
         def unzip(xys):
             return tuple(map(list, zip(*xys)))
-
         return unzip(next_batch)
 
     def frag_image(self, image):
@@ -251,8 +212,9 @@ def make_dataqueue(dataset):
 
 if __name__ == '__main__':
     training_dataset, test_dataset = get_datasets()
-    for i, batch in enumerate(training_dataset):
-        print 'batch', i
+    filenames = [img.uncompressed_filename() for img in training_dataset.images] + [img.uncompressed_filename() for img in test_dataset.images]
+    for filename in filenames:
+        print filename
 
 
 

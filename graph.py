@@ -23,7 +23,7 @@ def max_pool_2x2(x):
     )
 
 
-def inference(image_placeholder, keep_prob_placeholder):
+def inference(images, keep_prob):
 
     N1 = 32
     N2 = 64
@@ -31,7 +31,7 @@ def inference(image_placeholder, keep_prob_placeholder):
     with tf.name_scope('conv1'):
         W_conv1 = weight_variable([5, 5, 3, N1])
         b_conv1 = bias_variable([N1])
-        h_conv1 = tf.nn.relu(conv2d(image_placeholder, W_conv1) + b_conv1)
+        h_conv1 = tf.nn.relu(conv2d(images, W_conv1) + b_conv1)
         h_pool1 = max_pool_2x2(h_conv1)
 
     with tf.name_scope('conv2'):
@@ -47,20 +47,20 @@ def inference(image_placeholder, keep_prob_placeholder):
         h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
 
     with tf.name_scope('drop'):
-        keep_prob = keep_prob_placeholder
         h_drop = tf.nn.dropout(h_fc1, keep_prob)
 
-    with tf.name_scope('fc2'):
-        W_fc2 = weight_variable([1024, 1])
-        b_fc2 = bias_variable([1])
-        y = tf.matmul(h_drop, W_fc2) + b_fc2
+    with tf.name_scope('linear'):
+        W_linear = weight_variable([1024, 2])
+        b_linear = bias_variable([2])
+        y = tf.matmul(h_drop, W_linear) + b_linear
 
     return y
 
 
-def loss(predicted, actual):
-    rmse = tf.sqrt(tf.reduce_sum(tf.square(tf.sub(predicted, actual))))
-    return rmse
+def loss(logits, labels):
+    xent = tf.nn.sparse_softmax_cross_entropy_with_logits(logits, labels)
+    mean_xent = tf.reduce_mean(xent)
+    return mean_xent
 
 
 def training(optimizer, loss):
@@ -68,10 +68,10 @@ def training(optimizer, loss):
     return train_op
 
 
-def evaluation(predicted, actual):
-    errors = tf.abs(tf.sub(predicted, actual))
-    avg_error = tf.reduce_mean(errors)
-    return avg_error
+def evaluation(logits, labels):
+    correct = tf.equal(tf.argmax(logits, 1), labels)
+    accuracy = tf.reduce_mean(tf.cast(correct, tf.float32))
+    return accuracy
 
 
 
