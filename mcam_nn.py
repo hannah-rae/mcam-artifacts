@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 
 VERSION = '1.2'
 
-LEARNING_RATE = 1e-6
+LEARNING_RATE = 1e-4
 
 DROPOUT = 1.0
 
@@ -23,14 +23,14 @@ def placeholder_inputs(batch_size):
         tf.float32,
         shape = (batch_size, input_data.WINDOW_SIZE, input_data.WINDOW_SIZE, 3)
     )
-    corruptions_placeholder = tf.placeholder(
-        tf.float32,
+    labels_placeholder = tf.placeholder(
+        tf.int64,
         shape = (batch_size)
     )
     keep_prob_placeholder = tf.placeholder(
         tf.float32
     )
-    return images_placeholder, corruptions_placeholder, keep_prob_placeholder
+    return images_placeholder, labels_placeholder, keep_prob_placeholder
 
 
 def run_training():
@@ -42,11 +42,11 @@ def run_training():
 
         optimizer = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE)
 
-        images_pl, corruptions_pl, keep_prob_pl = placeholder_inputs(training_dataset.batch_size)
-        corruptions = graph.inference(images_pl, keep_prob_pl)
-        loss        = graph.loss(corruptions, corruptions_pl)
+        images_pl, labels_pl, keep_prob_pl = placeholder_inputs(training_dataset.batch_size)
+        logits      = graph.inference(images_pl, keep_prob_pl)
+        loss        = graph.loss(logits, labels_pl)
         train_op    = graph.training(optimizer, loss)
-        evaluation  = graph.evaluation(corruptions, corruptions_pl)
+        evaluation  = graph.evaluation(logits, labels_pl)
 
         saver = tf.train.Saver()
 
@@ -79,14 +79,14 @@ def run_training():
                 save_model(step, eval_value)
                 break
 
-            images_feed, corruptions_feed = batch
+            images_feed, labels_feed = batch
             feed_dict = {
                 images_pl: images_feed,
-                corruptions_pl: corruptions_feed,
+                labels_pl: labels_feed,
                 keep_prob_pl: DROPOUT
             }
-            _, loss_value, eval_value, corr_values = sess.run(
-                [train_op, loss, evaluation, corruptions],
+            _, loss_value, eval_value = sess.run(
+                [train_op, loss, evaluation],
                 feed_dict=feed_dict
             )
 
@@ -94,7 +94,7 @@ def run_training():
             trace.append((step, loss_value, eval_value))
 
             if end_time - last_print > 2:
-                print ('Step %d:  loss = %.2f  eval = %.2f  time = %.2f'  \
+                print ('Step %d:  cross-entropy = %.2f  accuracy = %.2f  time = %.2f'  \
                            % (step, loss_value, eval_value, end_time-start_time))
                 last_print = time.time()
 
@@ -103,20 +103,14 @@ def run_training():
                 plt.figure('trace_loss')
                 plt.clf()
                 plt.plot([s for s,l,e in trace], [l for s,l,e in trace])
-                plt.title('Loss')
+                plt.title('Cross-entropy')
                 plt.savefig('debug/loss.png')
 
                 plt.figure('trace_eval')
                 plt.clf()
                 plt.plot([s for s,l,e in trace], [e for s,l,e in trace])
-                plt.title('Eval')
+                plt.title('Accuracy')
                 plt.savefig('debug/eval.png')
-
-                plt.figure('plot')
-                plt.clf()
-                plt.plot(corr_values, corruptions_feed, marker='.', linestyle='none')
-                plt.title('Predicted vs. Actual')
-                plt.savefig('debug/plot-%d.png' % step)
 
                 last_plot = time.time()
             ####
