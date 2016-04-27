@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.2/jquery.min.js"></script>
+<script> <!-- Chrome security thing -->
+    $(document).bind('mobileinit',function(){
+        $.mobile.changePage.defaults.changeHash = false;
+        $.mobile.hashListeningEnabled = false;
+        $.mobile.pushStateEnabled = false;
+    });
+</script>
+<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jquerymobile/1.4.5/jquery.mobile.min.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquerymobile/1.4.5/jquery.mobile.min.js"></script>
+<script>
+    $(document).ready(function(){
+        $('.card').on('swiperight',function(event){
+            $(this).addClass('rotate-right').delay(700).fadeOut(1);
+            $('.card').find('.status').remove();
+            $(this).append('<div class="status like">KEEP!</div>');
+
+            if ($(this).is(':last-child')) {
+                $('.card:nth-child(1)').removeClass ('rotate-left rotate-right').fadeIn(300);
+            } else {
+                $(this).next().removeClass('rotate-left rotate-right').fadeIn(400);
+            }
+        });
+
+        $('.card').on('swipeleft',function(event){
+            $(this).addClass('rotate-left').delay(700).fadeOut(1);
+            $('.card').find('.status').remove();
+            $(this).append('<div class="status dislike">RETRANSMIT!</div>');
+
+            if ($(this).is(':last-child')) {
+                $('.card:nth-child(1)').removeClass ('rotate-left rotate-right').fadeIn(300);
+            } else {
+                $(this).next().removeClass('rotate-left rotate-right').fadeIn(400);
+            }
+      });
+    });
+</script>
+<style>
+    body {
+        text-align: center;
+    }
+    #header h1 {
+        transform: rotate(-10deg) scale(1.5);
+    }
+    #cartoon {
+        position: fixed;
+        bottom: 0;
+        right: 0;
+    }
+    #cartoon img {
+        width: 400px;
+        box-shadow: 0 0 50px 25px #FFF;
+    }
+    #container {
+      width: 500px;
+      margin: auto !important;
+      display: block;
+      height: 500px;
+      position: relative;
+      list-style-type: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -khtml-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
+    .card {
+      display: none;
+      background: #FFF;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      color: #fff;
+      padding: 20px;
+      width: 360px;
+      height: 360px;
+      top: 50px;
+      left: 50px;
+      position: absolute;
+      cursor: hand;
+    }
+    .rotate-right {
+      transform: rotate(30deg) scale(0.8);
+      transition: 0.5s;
+      margin-left: 400px;
+      cursor: e-resize;
+      opacity: 0;
+    }
+    .rotate-left {
+      transform: rotate(-30deg) scale(0.8);
+      transition: 0.5s;
+      opacity: 0;
+      margin-left: -400px;
+      cursor: w-resize;
+    }
+    .picture {
+      background: #222;
+      width: 340px;
+      height: 340px;
+      display: block;
+      margin-top: 10px;
+      margin-left: 10px;
+      background-size: 100% auto !important;
+      background-position: center;
+     background-repeat: no-repeat;
+    }
+    .like {
+      border-radius: 5px;
+      padding: 5px 10px;
+      border: 2px solid green;
+      color: green;
+      text-transform: uppercase;
+      font-size: 30px;
+      position: absolute;
+      top: 50px;
+      right: 40px;
+      text-shadow: none;
+    }
+    .dislike {
+      border-radius: 5px;
+      padding: 5px 10px;
+      border: 2px solid red;
+      color: red;
+      text-transform: uppercase;
+      font-size: 30px;
+      position: absolute;
+      top: 50px;
+      left: 40px;
+      text-shadow: none;
+    }
+</style>
+</head>
+<body>
+
+<div id="header">
+    <h1>Lablr</h1>
+</div>
+
+<div id="container">
+    <div class="card" style="display: block;"><div class="picture" style="display: block; background-image: url('data/McamRRecoveredProduct_0496482327-26530-1_0compressed20.jpg')"></div></div>
+    <div class="card"><div class="picture" style="display: block; background-image: url('data/McamRRecoveredProduct_0496482327-26530-1_0compressed99.jpg')"></div></div>
+    <div class="card"><div class="picture" style="display: block; background-image: url('data/McamRRecoveredProduct_0496482327-26530-1_1compressed20.jpg')"></div></div>
+    <div class="card"><div class="picture" style="display: block; background-image: url('data/McamRRecoveredProduct_0496482327-26530-1_1compressed99.jpg')"></div></div>
+    <div class="card"><div class="picture" style="display: block; background-image: url('data/McamRRecoveredProduct_0496482327-26530-1_2compressed20.jpg')"></div></div>
+    <div class="card"><div class="picture" style="display: block; background-image: url('data/McamRRecoveredProduct_0496482327-26530-1_2compressed99.jpg')"></div></div>
+    <div class="card"><div class="picture" style="display: block; background-image: url('data/McamRRecoveredProduct_0496482327-26530-1_3compressed20.jpg')"></div></div>
+    <div class="card"><div class="picture" style="display: block; background-image: url('data/McamRRecoveredProduct_0496482327-26530-1_3compressed99.jpg')"></div></div>
+    <div class="card"><div class="picture" style="display: block; background-image: url('data/McamRRecoveredProduct_0496482327-26530-1_4compressed20.jpg')"></div></div>
+    <div class="card"><div class="picture" style="display: block; background-image: url('data/McamRRecoveredProduct_0496482327-26530-1_4compressed99.jpg')"></div></div>
+    <div class="card"><div class="picture" style="display: block; background-image: url('data/McamRRecoveredProduct_0496482327-26530-1_5compressed20.jpg')"></div></div>
+    <div class="card"><div class="picture" style="display: block; background-image: url('data/McamRRecoveredProduct_0496482327-26530-1_5compressed99.jpg')"></div></div>
+    <div class="card"><div class="picture" style="display: block; background-image: url('data/McamRRecoveredProduct_0496482327-26530-1_6compressed20.jpg')"></div></div>
+    <div class="card"><div class="picture" style="display: block; background-image: url('data/McamRRecoveredProduct_0496482327-26530-1_6compressed99.jpg')"></div></div>
+    <div class="card"><div class="picture" style="display: block; background-image: url('data/McamRRecoveredProduct_0496482327-26530-1_7compressed20.jpg')"></div></div>
+    <div class="card"><div class="picture" style="display: block; background-image: url('data/McamRRecoveredProduct_0496482327-26530-1_7compressed99.jpg')"></div></div>
+    <div class="card"><div class="picture" style="display: block; background-image: url('data/McamRRecoveredProduct_0496482327-26530-1_8compressed20.jpg')"></div></div>
+    <div class="card"><div class="picture" style="display: block; background-image: url('data/McamRRecoveredProduct_0496482327-26530-1_8compressed99.jpg')"></div></div>
+    <div class="card"><div class="picture" style="display: block; background-image: url('data/McamRRecoveredProduct_0496482327-26530-1_9compressed20.jpg')"></div></div>
+    <div class="card"><div class="picture" style="display: block; background-image: url('data/McamRRecoveredProduct_0496482327-26530-1_9compressed99.jpg')"></div></div>
+</div>
+
+</body>
+</html>

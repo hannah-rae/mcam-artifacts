@@ -11,7 +11,7 @@ from PIL import Image
 #### Query to generate artifact-image-list.csv
 #### Retrieves images and their recovered products
 #### Note: Would it make more sense to select on compression column?
-# select sol, name, udr_image_id, filter_used from udr where udr_image_id in 
+# select sol, name, udr_image_id, filter_used from udr where udr_image_id in
 # (select udr_image_id
 #    from udr
 #        where type_of_product = 'RecoveredProduct'
@@ -22,7 +22,7 @@ from PIL import Image
 # and type_of_product != 'Thumbnail'
 # and sol != 1000
 # and width = 168 and height = 150
-# and name not like '%Partial%' 
+# and name not like '%Partial%'
 # order by udr_image_id
 
 #### Query to generate video-udrs.csv
@@ -155,7 +155,7 @@ class McamImage(object):
             str(self.sol).zfill(4),
             self.name.strip('\"')
         )
-    
+
     def compressed_filename(self, quality=DEFAULT_QUALITY):
         return '/home/hannah/data/mcam-artifacts-tmp/%s_compressed%d.jpg' % (
             self.name.strip('\"'),

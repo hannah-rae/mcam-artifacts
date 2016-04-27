@@ -1,0 +1,4 @@
+- saving steps every so often in Trainer.train
+- training vs test data (remember to not shuffle McamImage.all_names)
+- store image names OR udr with label metadata for later calibration of training set
+- remove dataset class (not actually necessary)
