@@ -24,7 +24,7 @@ class Learner(object):
         self.saver = tf.train.Saver()
 
         if savefile:
-            self.saver.restore(savefile)
+            self.saver.restore(self.sess, savefile)
         else:
             self.sess.run(tf.initialize_all_variables())
 

@@ -10,7 +10,7 @@ class McamDataSet(dataset.base.DataSet):
             raise RuntimeError('McamDataSet.__init__: Missing argument')
 
         self.image_class = image_class
-        self.image_names = utils.locked.Locked(list(image_class.all_names))  # list() creates copy
+        self.image_names = utils.locked.Locked(list(image_class.all_names)*10)  # list() creates copy
         self.b = b
         self.w = w
         self.window_size = window_size

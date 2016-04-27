@@ -34,10 +34,13 @@ class Trainer(object):
                 self.train_step(learner)
                 cur_time = time.time()
                 if cur_time - self.last_saved > 600:
-                    learner.saver.save(learner.sess, 'saved_sessions/saved_%d' % cur_time)
+                    learner.saver.save(learner.sess, 'saved_sessions/saved_%d_%d' % (cur_time, learner.get_global_step()))
                     self.last_saved = cur_time
         except StopIteration:
-            return
+            pass
+        finally:
+            cur_time = time.time()
+            learner.saver.save(learner.sess, 'saved_sessions/saved_%d_%d' % (cur_time, learner.get_global_step()))
 
 
 

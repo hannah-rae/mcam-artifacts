@@ -15,10 +15,11 @@ from bokeh.client import push_session, pull_session
 import dataset.mcam1
 import dataset.mcam_image.local
 import utils.image
+import learner.mcam1
 
 
-T = time.time()
-os.mkdir('data/labeled_%d' % T)
+# T = time.time()
+# os.mkdir('data/labeled_%d' % T)
 
 
 def gen_examples():
@@ -26,7 +27,7 @@ def gen_examples():
     random.shuffle(list_o_names)
 
     for name in list_o_names:
-        c = random.randint(75 , 95)
+        c = random.randint(60, 95)
         img = dataset.mcam_image.local.McamImage(name, c)
         slices, losses = img.image_slices_with_losses(window_size=100, stride=100, margin=10)
         slices_and_losses = zip(slices, losses)
@@ -50,25 +51,31 @@ def plot_slice(sl, title=None):
     return p
 
 
-i = 0
-def record(sl, l, c, lbl):
-    global i
-    i += 1
-    #np.save('data/labeled_%d/%d.npy' % (T, i), sl)
-    with open('data/labeled_%d/metadata.txt' % T, 'a+') as md:
-        md.write('%d %f %d %s\n' % (i, l, c, lbl))
+# i = 0
+# def record(sl, l, c, lbl):
+#     global i
+#     i += 1
+#     #np.save('data/labeled_%d/%d.npy' % (T, i), sl)
+#     with open('data/labeled_%d/metadata.txt' % T, 'a+') as md:
+#         md.write('%d %f %d %s\n' % (i, l, c, lbl))
 
-
-plots = []
-for _ in range(7):
-    print _
+this_model = learner.mcam1.McamLearner(savefile='saved_sessions/saved_1461795410')
+for i in range(12):
     sl, l, c = next(examples)
-    record(sl, l, c, '')
-    p = plot_slice(sl, title=str(i))
-    plots.append(p)
+    [[p, _]] = this_model([sl])
+    img = Image.fromarray(utils.image.arr_to_img(sl))
+    img.save('test_images/%d_%d_%f_%f.png' % (i, c, l, p), 'PNG')
+
+# plots = []
+# for _ in range(7):
+#     print _
+#     sl, l, c = next(examples)
+    #record(sl, l, c, '')
+    #p = plot_slice(sl, title=str(i))
+    #plots.append(p)
 
 
-session = push_session(curdoc())
-curdoc().add_root(vplot(*plots))
-session.show()
+# session = push_session(curdoc())
+# curdoc().add_root(vplot(*plots))
+# session.show()
 
