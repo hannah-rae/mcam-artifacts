@@ -27,7 +27,7 @@ def gen_examples():
     random.shuffle(list_o_names)
 
     for name in list_o_names:
-        c = random.randint(60, 95)
+        c = random.randint(55, 95)
         img = dataset.mcam_image.local.McamImage(name, c)
         slices, losses = img.image_slices_with_losses(window_size=100, stride=100, margin=10)
         slices_and_losses = zip(slices, losses)
@@ -59,8 +59,8 @@ def plot_slice(sl, title=None):
 #     with open('data/labeled_%d/metadata.txt' % T, 'a+') as md:
 #         md.write('%d %f %d %s\n' % (i, l, c, lbl))
 
-this_model = learner.mcam1.McamLearner(savefile='saved_sessions/saved_1461795410')
-for i in range(12):
+this_model = learner.mcam1.McamLearner(savefile='saved_1462309125_10009')
+for i in range(16):
     sl, l, c = next(examples)
     [[p, _]] = this_model([sl])
     img = Image.fromarray(utils.image.arr_to_img(sl))

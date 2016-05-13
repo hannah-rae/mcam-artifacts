@@ -32,12 +32,15 @@ def plot_labels_and_loss():
     print p_opt
 
     xs = np.arange(min(losses), max(losses), 0.0001)
+    print xs
     ys = lr(xs, *p_opt)
+    print ys
 
 
     p = figure(title='Logistic Regression for Label Prediction')
     p.xaxis.axis_label = 'Information Loss from Compression'
     p.yaxis.axis_label = 'P(label=accept)'
+    #p.multi_line([xs, ys], [[1, 2, 3, 4], [1,2,3,4]])
     p.line(x=xs, y=ys)
     p.scatter(losses, labels)
     output_file("plotty.html")

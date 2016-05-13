@@ -26,7 +26,7 @@ def gen_examples():
     random.shuffle(list_o_names)
 
     for name in list_o_names:
-        c = random.randint(75 , 95)
+        c = random.randint(60, 95)
         img = dataset.mcam_image.local.McamImage(name, c)
         slices, losses = img.image_slices_with_losses(window_size=100, stride=100, margin=10)
         slices_and_losses = zip(slices, losses)

@@ -66,7 +66,10 @@ class BaseMcamImage(object):
 
     def compute_loss(self, image1, image2):
         # return float(np.sqrt(np.sum(np.square(image1.flatten() - image2.flatten()))))
-        return float(np.mean(np.abs(image1 - image2)))
+        # return float(np.mean(np.abs(image1 - image2)))
+        pixel_diffs = np.abs(image1 - image2)
+        pixel_diffs.sort() # sort ascending
+        return float(np.mean(pixel_diffs[11:])) # take the average of the top 10 highest differences
 
 
 
