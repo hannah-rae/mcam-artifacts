@@ -24,9 +24,11 @@ class Learner(object):
         self.saver = tf.train.Saver()
 
         if savefile:
-            self.saver.restore(self.sess, savefile)
+            # self.saver.restore(self.sess, savefile)
+            new_saver = tf.train.import_meta_graph(savefile)
+            new_saver.restore(self.sess, savefile.split('.')[0])
         else:
-            self.sess.run(tf.initialize_all_variables())
+            self.sess.run(tf.global_variables_initializer())
 
     def train(self, inputs, labels, feed_dict={}):
         _, stats = self.sess.run(
@@ -46,10 +48,11 @@ class Learner(object):
         return self.sess.run(self.global_step)
 
     def __call__(self, inputs, feed_dict={}):
-        outputs = self.sess.run(
-            self.outputs,
+        outputs, m = self.sess.run(
+            [self.outputs, self.merged],
             feed_dict=dict({self.inputs_pl: inputs}, **feed_dict)
         )
+        self.writer.add_summary(m)
         return outputs
 
 
