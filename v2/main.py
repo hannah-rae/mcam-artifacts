@@ -1,8 +1,8 @@
 import trainer.mcam1 as trainer
 import learner.mcam1 as learner
 import dataset.mcam1 as dataset
-#import dataset.mcam_image.sese_nfs as image
-import dataset.mcam_image.local as image
+import dataset.mcam_image.sese_nfs as image
+#import dataset.mcam_image.local as image
 
 
 def main():

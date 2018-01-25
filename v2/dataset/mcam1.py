@@ -2,6 +2,7 @@ import dataset.base
 import utils.locked
 
 import scipy.special
+import numpy as np
 
 class McamDataSet(dataset.base.DataSet):
 
@@ -33,12 +34,21 @@ class McamDataSet(dataset.base.DataSet):
                 margin=self.margin
             )
 
-            labels = [self.loss_to_label(loss) for loss in losses]
+            labels = [self.loss_to_label(loss, compression) for loss in losses]
 
             return slices, labels
 
-    def loss_to_label(self, loss):
-        prob = scipy.special.expit(self.w*loss + self.b)
+    def loss_to_label(self, loss, compression):
+
+        def predict_1d(x, theta=-1.38705672, b=14.83335514):
+            return 1 / (1 + np.exp(-1 * (np.dot(theta, x)+b)))
+
+        def predict_2d(x, theta=np.array([-1.20730291, 0.15657625]), b=0):
+            return 1 / (1 + np.exp(-1 * (np.dot(theta, x)+b)))
+
+        prob = predict_2d(np.array([loss, compression]))
+        #prob = predict_1d(loss)
+        #prob = scipy.special.expit(self.w*loss + self.b)
         return [prob, 1-prob]
 
 
